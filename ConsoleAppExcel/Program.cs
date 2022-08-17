@@ -1,11 +1,19 @@
 ﻿using System.Diagnostics;
 using Excel = Microsoft.Office.Interop.Excel;
 
-//Get a list of current Excel process Ids.
+//Get a list of current Excel processes.
 Process[] origExcelProc = Process.GetProcessesByName("EXCEL");
-List<int> origProcId = new List<int>();
-foreach (Process p in origExcelProc) {
-    origProcId.Add(p.Id);
+
+//Create list of process ids.
+List<int> origProcIds = new();
+
+//If another Excel process is already running.
+if (origExcelProc.Length > 0) {
+
+    //Add process Id to the list.
+    for (int i = 0; i <= origExcelProc.Length -1; i++) {
+        origProcIds.Add(origExcelProc[i].Id);
+    }
 }
 
 //Do all the Excel work.
@@ -17,17 +25,21 @@ GC.WaitForPendingFinalizers();
 GC.Collect();
 GC.WaitForPendingFinalizers();
 
+
 //Get a new list of Excel processes.
 Process[] finalExcelProc = Process.GetProcessesByName("EXCEL");
-foreach (Process proc in finalExcelProc) {
+
+for (int i = 0; i <= finalExcelProc.Length -1; i++) {
+    //Store the iteration in a variable.
+    Process proc = finalExcelProc[i];
 
     //If Excel process started after original collection and is still running.
-    if (!origProcId.Contains(proc.Id) && !proc.HasExited) {
+    if (!origProcIds.Contains(proc.Id) && !proc.HasExited) {
         CheckFinalProcess(proc);
     }
 }
 
-
+///Perform all the Excel work.
 static void ExcelProcess()
 {
     Excel.Application excelApp = new();
@@ -51,10 +63,10 @@ static void ExcelProcess()
 
         //Write date from source to destination file.
         if (sheetName.Contains("Docs")) {
-            DocProjects(sheet, destSheets[1]);
+            WriteDocsHeader(sheet, destSheets[1]);
         }
         else if (sheetName.Contains("Client")) {
-            ClientProjects(sheet, destSheets[2]);
+            WriteClientHeader(sheet, destSheets[2]);
         }
     }
 
@@ -71,19 +83,21 @@ static void ExcelProcess()
 }
 
 
-static void DocProjects(Excel.Worksheet srcWs, Excel.Worksheet destWs)
+static void WriteDocsHeader(Excel.Worksheet srcWs, Excel.Worksheet destWs)
 {
-    Excel.Range firstRow = srcWs.UsedRange.EntireRow[1].Cells;
+    //Get the last column that has data.
     int lastCol = srcWs.UsedRange.SpecialCells(Excel.XlCellType.xlCellTypeLastCell, Type.Missing).Column;
-    int lastRow = srcWs.UsedRange.SpecialCells(Excel.XlCellType.xlCellTypeLastCell, Type.Missing).Row;
 
+    //Get the first row.
+    Excel.Range firstRow = srcWs.UsedRange.EntireRow[1].Cells;
+
+    //Write first row from source to destination worksheet.
     for (int i = 1; i <= lastCol; i++) {
-        //Write first row from source to destination worksheet.
         destWs.Cells[1, i] = firstRow[i];
     }
 }
 
-static void ClientProjects(Excel.Worksheet srcWs, Excel.Worksheet destWs)
+static void WriteClientHeader(Excel.Worksheet srcWs, Excel.Worksheet destWs)
 {
 
 }
@@ -94,10 +108,12 @@ static void ClientProjects(Excel.Worksheet srcWs, Excel.Worksheet destWs)
 /// <param name="origIds"></param>
 static void CheckFinalProcess(Process process)
 {
-    //Refresh 5 times, then kill it.
-    for (int i = 0; i <= 5; i++) {
+    int counter = 4;
+
+    //Refresh # times, then kill it.
+    for (int i = 0; i <= counter; i++) {
         //If Process.HasExited is false.
-        if (i < 5) {
+        if (i < counter) {
             //Discard cached info about process.
             process.Refresh();
             //Write message to Console.
@@ -105,8 +121,8 @@ static void CheckFinalProcess(Process process)
             Thread.Sleep(1000);
         }
 
-        //On the 6th time, kill the process.
-        else if (i == 5) {
+        //On the last time, kill the process.
+        else if (i == counter) {
             //Kill the process.
             process.Kill();
             Console.WriteLine("Excel Process has been terminated.");
