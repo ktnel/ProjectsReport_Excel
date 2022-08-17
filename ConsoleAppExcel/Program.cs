@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Runtime.InteropServices;
 using Excel = Microsoft.Office.Interop.Excel;
 
 //Get a list of current Excel processes.
@@ -43,7 +44,7 @@ for (int i = 0; i <= finalExcelProc.Length -1; i++) {
 static void ExcelProcess()
 {
     Excel.Application excelApp = new();
-
+    
     //Open source file.
     Excel.Workbooks srcBooks = excelApp.Workbooks;
     Excel.Workbook sourceWb = srcBooks.Open(@"C:\Users\kyle.nelson\Downloads\Test_BIM 360 Project List.xlsx");
@@ -77,12 +78,13 @@ static void ExcelProcess()
     //Close the workbooks.
     sourceWb.Close();
     destWb.Close();
-
+    
     //Quit Excel application.
     excelApp.Quit();
+    
 }
 
-
+///Write specific Docs header columns to destination file.
 static void WriteDocsHeader(Excel.Worksheet srcWs, Excel.Worksheet destWs)
 {
     //Get the last column that has data.
@@ -97,18 +99,16 @@ static void WriteDocsHeader(Excel.Worksheet srcWs, Excel.Worksheet destWs)
     }
 }
 
+///Write specific Client header columns to destination file.
 static void WriteClientHeader(Excel.Worksheet srcWs, Excel.Worksheet destWs)
 {
 
 }
 
-///<summary>
 /// If Excel Processes started in this application are still running, stop them.
-/// </summary>
-/// <param name="origIds"></param>
 static void CheckFinalProcess(Process process)
 {
-    int counter = 4;
+    int counter = 2;
 
     //Refresh # times, then kill it.
     for (int i = 0; i <= counter; i++) {
