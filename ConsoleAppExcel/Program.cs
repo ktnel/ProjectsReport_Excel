@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Excel = Microsoft.Office.Interop.Excel;
+using System.Globalization;
 
 //Get a list of current Excel processes.
 Process[] origExcelProc = Process.GetProcessesByName("EXCEL");
@@ -45,45 +46,85 @@ static void ExcelProcess()
 {
     Excel.Application excelApp = new();
     
-    //Open source file.
-    Excel.Workbooks srcBooks = excelApp.Workbooks;
-    Excel.Workbook sourceWb = srcBooks.Open(@"C:\Users\kyle.nelson\Downloads\Test_BIM 360 Project List.xlsx");
-    Excel.Sheets sourceSheets = sourceWb.Worksheets;
+    try { 
+        //Open source file.
+        Excel.Workbooks srcBooks = excelApp.Workbooks;
+        Excel.Workbook sourceWb = srcBooks.Open(@"C:\Users\kyle.nelson\Downloads\Test_BIM 360 Project List.xlsx");
+        Excel.Sheets sourceSheets = sourceWb.Worksheets;
 
-    //Open destination file.
-    Excel.Workbook destWb = excelApp.Workbooks.Open(@"C:\Users\kyle.nelson\Downloads\Dest_BIM 360 Project List.xlsx");
-    Excel.Sheets destSheets = destWb.Worksheets;
+        //Open destination file.
+        Excel.Workbook destWb = excelApp.Workbooks.Open(@"C:\Users\kyle.nelson\Downloads\Dest_BIM 360 Project List.xlsx");
+        Excel.Sheets destSheets = destWb.Worksheets;
 
-    for (int i = 1; i <= sourceSheets.Count; i++) {
-
-        //Store current index as Worksheet.
-        Excel.Worksheet sheet = sourceSheets[i];
-
-        //Get Worksheet sheetName.
-        string sheetName = sheet.Name;
-
-        //Write date from source to destination file.
-        if (sheetName.Contains("Docs")) {
-            WriteDocsHeader(sheet, destSheets[1]);
+        foreach (Excel.Worksheet dSheet in destSheets) {
+            dSheet.UsedRange.Clear();
         }
-        else if (sheetName.Contains("Client")) {
-            WriteClientHeader(sheet, destSheets[2]);
+
+        for (int i = 1; i <= sourceSheets.Count; i++) {
+
+            //Store current index as Worksheet.
+            Excel.Worksheet sheet = sourceSheets[i];
+
+            //Get Worksheet sheetName.
+            string sheetName = sheet.Name;
+
+            //Write date from source to destination file.
+            if (sheetName.Contains("Docs")) {
+                int[] activeCols = { 1, 2, 3, 4 };
+                WriteHeader(sheet, destSheets[1], activeCols);
+
+                int[] archiveCols = { 1, 2, 3, 4, 5, 6, 7, 8 };
+                WriteHeader(sheet, destSheets[2], archiveCols);
+            }
+            else if (sheetName.Contains("Client")) {
+                int[] clientCols = { 1, 2, 3, 4, 5 };
+                WriteHeader(sheet, destSheets[3], clientCols);
+            }
         }
+
+        //Save the workbooks.
+        sourceWb.Save();
+        destWb.Save();
+
+        //Close the workbooks.
+        sourceWb.Close();
+        destWb.Close();
+    }
+    catch (Exception ex) {
+        Console.WriteLine(ex.Message);
     }
 
-    //Save the workbooks.
-    sourceWb.Save();
-    destWb.Save();
-
-    //Close the workbooks.
-    sourceWb.Close();
-    destWb.Close();
-    
     //Quit Excel application.
-    excelApp.Quit();
-    
+    excelApp.Quit(); 
 }
 
+static void WriteHeader(Excel.Worksheet srcWs, Excel.Worksheet destWs, int[] cols)
+{
+    //Write date/time stamp to cell B1.
+    destWs.Cells[1, 2] = $"Export Date: {DateTime.Now}";
+    
+    //Get the last row number.
+    int lastRow = srcWs.UsedRange.SpecialCells(Excel.XlCellType.xlCellTypeLastCell, Type.Missing).Row;
+
+    //Starting row number.
+    int rowCount = 2;
+
+    //Loop until finished with last row.
+    while (rowCount <= lastRow) {
+
+        //Write each column (by column number from cols) to destination sheet.
+        for (int i = 1; i <= cols.Length; i++) {
+
+            //Get row from source worksheet. Current row is one less than starting row.
+            Excel.Range srcRow = srcWs.UsedRange.EntireRow[rowCount - 1].Cells;
+
+            destWs.Cells[rowCount, i] = srcRow[cols[(i - 1)]];
+            rowCount++;
+        }
+    }
+    
+}
+/*
 ///Write specific Docs header columns to destination file.
 static void WriteDocsHeader(Excel.Worksheet srcWs, Excel.Worksheet destWs)
 {
@@ -95,15 +136,10 @@ static void WriteDocsHeader(Excel.Worksheet srcWs, Excel.Worksheet destWs)
 
     //Write first row from source to destination worksheet.
     for (int i = 1; i <= lastCol; i++) {
-        destWs.Cells[1, i] = firstRow[i];
+        destWs.Cells[2, i] = firstRow[i];
     }
 }
-
-///Write specific Client header columns to destination file.
-static void WriteClientHeader(Excel.Worksheet srcWs, Excel.Worksheet destWs)
-{
-
-}
+*/
 
 /// If Excel Processes started in this application are still running, stop them.
 static void CheckFinalProcess(Process process)
