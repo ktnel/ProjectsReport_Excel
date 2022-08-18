@@ -98,6 +98,7 @@ static void ExcelProcess()
     excelApp.Quit(); 
 }
 
+///Write Excel data to destination Workbook.
 static void WriteHeader(Excel.Worksheet srcWs, Excel.Worksheet destWs, int[] cols)
 {
     //Write date/time stamp to cell B1.
@@ -106,40 +107,30 @@ static void WriteHeader(Excel.Worksheet srcWs, Excel.Worksheet destWs, int[] col
     //Get the last row number.
     int lastRow = srcWs.UsedRange.SpecialCells(Excel.XlCellType.xlCellTypeLastCell, Type.Missing).Row;
 
-    //Starting row number.
+    //Starting row number. 2 because date/time is written to row 1.
     int rowCount = 2;
-
+    
     //Loop until finished with last row.
     while (rowCount <= lastRow) {
 
-        //Write each column (by column number from cols) to destination sheet.
-        for (int i = 1; i <= cols.Length; i++) {
+        //Get row from source worksheet. Current row is one less than starting row.
+        Excel.Range srcRow = srcWs.UsedRange.EntireRow[rowCount - 1].Cells;
+        
+        //Write row (rowCount) to destination file.
+        for (int column = 1; column <= cols.Length; column++) {
 
-            //Get row from source worksheet. Current row is one less than starting row.
-            Excel.Range srcRow = srcWs.UsedRange.EntireRow[rowCount - 1].Cells;
+            //Get cell value by column number (index value on input cols array).
+            Excel.Range srcCell = srcRow[cols[(column - 1)]];
 
-            destWs.Cells[rowCount, i] = srcRow[cols[(i - 1)]];
-            rowCount++;
+            //Write the cell contents to destination cell (starting at column A1).
+            destWs.Cells[rowCount, column] = srcCell;
         }
+        
+        //Move to the next row.
+        rowCount++;
     }
-    
+    Console.WriteLine("Write Done");
 }
-/*
-///Write specific Docs header columns to destination file.
-static void WriteDocsHeader(Excel.Worksheet srcWs, Excel.Worksheet destWs)
-{
-    //Get the last column that has data.
-    int lastCol = srcWs.UsedRange.SpecialCells(Excel.XlCellType.xlCellTypeLastCell, Type.Missing).Column;
-
-    //Get the first row.
-    Excel.Range firstRow = srcWs.UsedRange.EntireRow[1].Cells;
-
-    //Write first row from source to destination worksheet.
-    for (int i = 1; i <= lastCol; i++) {
-        destWs.Cells[2, i] = firstRow[i];
-    }
-}
-*/
 
 /// If Excel Processes started in this application are still running, stop them.
 static void CheckFinalProcess(Process process)
