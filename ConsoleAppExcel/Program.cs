@@ -150,11 +150,16 @@ static void WriteData(Excel.Worksheet srcWs, Excel.Worksheet destWs, int[] srcCo
 
     //Loop until finished with last row.
     while (srcRowCount <= lastRow) {
-        List<string> frstRow = new();
+        
+        ///Use same method as "lastRow" to get cells with data. This collects 16000+ cells.
         //Get row from source worksheet.
         Excel.Range srcRow = srcWs.UsedRange.EntireRow[srcRowCount].Cells;
 
+        //Store desired cells in list.
+        List<string> frstRow = new();
         for (int i = 0; i <= srcCols.Length-1; i++) {
+
+            //Get cell value by colCount number (index value on input srcCols array).
             frstRow.Add(srcRow[srcCols[i]].Cells.Text);
         }
 
@@ -189,7 +194,7 @@ static void WriteData(Excel.Worksheet srcWs, Excel.Worksheet destWs, int[] srcCo
         //Move to the next row.
         srcRowCount++;
     }
-    Console.WriteLine($"Workbook Complete");
+    Console.WriteLine($"{srcWs.Name} Workbook Complete");
 }
 
 static string GetStackLine(string msg)
