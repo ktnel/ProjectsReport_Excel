@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Text;
 using Excel = Microsoft.Office.Interop.Excel;
 //using System.Runtime.InteropServices;
 //using System.Globalization;
@@ -75,18 +76,18 @@ static void ExcelProcess()
                     Excel.Worksheet destActiveWS = destSheets[1];
 
                     //Write info from source to destination, only specified columns.
-                    WriteHeader(srcSheet, destActiveWS, activeCols);
+                    WriteData(srcSheet, destActiveWS, activeCols);
 
                     //Archived projects.
                     int[] archiveCols = { 1, 2, 3, 4, 5, 6, 7, 8 };
                     Excel.Worksheet destArchiveWS = destSheets[2];
-                    WriteHeader(srcSheet, destArchiveWS, archiveCols);
+                    WriteData(srcSheet, destArchiveWS, archiveCols);
                 }
                 //Client Hosted projects.
                 else if (sheetName.Contains("Client")) {
                     int[] clientCols = { 1, 2, 3, 4, 5 };
                     Excel.Worksheet destClientWS = destSheets[3];
-                    WriteHeader(srcSheet, destClientWS, clientCols);
+                    WriteData(srcSheet, destClientWS, clientCols);
                 }
             }
 
@@ -104,8 +105,13 @@ static void ExcelProcess()
             Console.WriteLine("Source Workbook is empty.");
         }
     }
+
+    //Catch all exceptions, write to Console.
     catch (Exception ex) {
-        Console.WriteLine(ex.Message);
+        if (ex.StackTrace != null) {
+            Console.WriteLine($"{ex.Message} ({GetStackLine(ex.StackTrace)})");
+        }
+        else { Console.WriteLine(ex.Message); };
     }
 
     //Quit Excel application.
@@ -113,53 +119,61 @@ static void ExcelProcess()
 }
 
 ///Write Excel data to destination Workbook.
-static void WriteHeader(Excel.Worksheet srcWs, Excel.Worksheet destWs, int[] srcCols)
+static void WriteData(Excel.Worksheet srcWs, Excel.Worksheet destWs, int[] srcCols)
 {
-    //Write date/time stamp to cell B1.
-    destWs.Cells[1, 2] = $"Export Date: {DateTime.Now}";
-    
+    //Get the destination Worksheet Name.
+    string destSheetName = destWs.Name;
+
+    //Variable to filter Active and Archived projects (rows). Not set on Client projects.
+    string rowFilter = "";
+
+    //If the destination sheet name contains Active or Archived, set rowFilter.
+    if (destSheetName.Contains("Active")) {
+        rowFilter = "Active";
+    }
+    else if (destSheetName.Contains("Archived")) {
+        rowFilter = "Archived";
+    }
+
     //Get the last row number.
     int lastRow = srcWs.UsedRange.SpecialCells(Excel.XlCellType.xlCellTypeLastCell, Type.Missing).Row;
 
-    //Starting row number. 2 because date/time is written to row 1.
-    int rowCount = 2;
+    //Starting row number.
+    int srcRowCount = 1;
+    int destRowCount = 1;
+
+    //Write date/time stamp to cell B1.
+    destWs.Cells[1, 2] = $"Export Date: {DateTime.Now}";
+    
+    //Move to the second row.
+    destRowCount += 1;
 
     //Loop until finished with last row.
-    while (rowCount <= lastRow) {
+    while (srcRowCount <= lastRow) {
+        List<string> frstRow = new();
+        //Get row from source worksheet.
+        Excel.Range srcRow = srcWs.UsedRange.EntireRow[srcRowCount].Cells;
 
-        //Get row from source worksheet. Current row is one less than starting row.
-        Excel.Range srcRow = srcWs.UsedRange.EntireRow[rowCount - 1].Cells;
-
-        //Variable to filter Active and Archived projects (rows). Not set on Client projects.
-        string rowFilter = "";
+        for (int i = 0; i <= srcCols.Length-1; i++) {
+            frstRow.Add(srcRow[srcCols[i]].Cells.Text);
+        }
 
         //Variable used to write a specific row or not.
         bool writeRow = true;
 
-        //Get the destination Worksheet Name.
-        string destSheetName = destWs.Name;
-
-        //If the destination sheet name contains Active or Archived, set rowFilter.
-        if (destSheetName.Contains("Active")) {
-            rowFilter = "Active";
-        }
-        else if (destSheetName.Contains("Archived")) {
-            rowFilter = "Archived";
-        }
-
-        //If the row is not the title or date row. Not used for Client projects.
-        if (rowCount > 2 & rowFilter != "") {
+        //If the row is not the title row. Not used for Client projects.
+        if (srcRowCount > 1 & rowFilter != "") {
 
             //If destination Ws Name contains rowFilter but source column 4 doesn't, skip row.
-            string checkCell = srcRow[rowCount, 4].Cells.Text;
+            string checkCell = frstRow[3];
             if (destSheetName.Contains(rowFilter) & checkCell != rowFilter) {
                 writeRow = false;
             }
         }
-        ///Not taking into accout skipped rows. Separate destRow counter and SourceRow counter.
+
         //Write data if writeRow is true.
         if (writeRow) {
-            //Write row (rowCount) to destination file.
+            //Write row (srcRowCount) to destination file.
             for (int colCount = 1; colCount <= srcCols.Length; colCount++) {
 
                 //Get cell value by colCount number (index value on input srcCols array).
@@ -167,13 +181,38 @@ static void WriteHeader(Excel.Worksheet srcWs, Excel.Worksheet destWs, int[] src
                 Excel.Range srcCell = srcRow[srcCols[(colCount - 1)]];
 
                 //Write the cell contents to destination cell (starting at colCount A1).
-                destWs.Cells[rowCount, colCount] = srcCell;
+                destWs.Cells[destRowCount, colCount] = srcCell;
             }
+            //Move to the next destination row.
+            destRowCount++;
         }
         //Move to the next row.
-        rowCount++;
+        srcRowCount++;
     }
     Console.WriteLine($"Workbook Complete");
+}
+
+static string GetStackLine(string msg)
+{
+    //Create a new StringBuilder
+    StringBuilder strLine = new StringBuilder("Line ");
+
+    //Isolate and collect everything after "cs:line ".
+    string str = "cs:line";
+    int strStart = (msg.IndexOf(str) + str.Length + 1);
+    string cut = msg.Substring(strStart, (msg.Length - strStart));
+
+    //Convert each char into int and add to StringBuilder.
+    //  once a number isn't found, break the foreach loop.
+    foreach (char c in cut) {
+        bool success = int.TryParse(c.ToString(), out int number);
+        if (success) {
+            strLine.Append(c);
+        }
+        else { break; }
+    }
+
+    return strLine.ToString();
 }
 
 /// If Excel Processes started in this application are still running, stop them.
