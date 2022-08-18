@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics;
-using System.Runtime.InteropServices;
 using Excel = Microsoft.Office.Interop.Excel;
-using System.Globalization;
+//using System.Runtime.InteropServices;
+//using System.Globalization;
 
 //Get a list of current Excel processes.
 Process[] origExcelProc = Process.GetProcessesByName("EXCEL");
@@ -11,10 +11,8 @@ List<int> origProcIds = new();
 
 //If another Excel process is already running.
 if (origExcelProc.Length > 0) {
-
-    //Add process Id to the list.
-    for (int i = 0; i <= origExcelProc.Length -1; i++) {
-        origProcIds.Add(origExcelProc[i].Id);
+    foreach (Process origProc in origExcelProc) {
+        origProcIds.Add(origProc.Id);
     }
 }
 
@@ -27,14 +25,10 @@ GC.WaitForPendingFinalizers();
 GC.Collect();
 GC.WaitForPendingFinalizers();
 
-
 //Get a new list of Excel processes.
 Process[] finalExcelProc = Process.GetProcessesByName("EXCEL");
 
-for (int i = 0; i <= finalExcelProc.Length -1; i++) {
-    //Store the iteration in a variable.
-    Process proc = finalExcelProc[i];
-
+foreach (Process proc in finalExcelProc) {
     //If Excel process started after original collection and is still running.
     if (!origProcIds.Contains(proc.Id) && !proc.HasExited) {
         CheckFinalProcess(proc);
@@ -45,8 +39,8 @@ for (int i = 0; i <= finalExcelProc.Length -1; i++) {
 static void ExcelProcess()
 {
     Excel.Application excelApp = new();
-    
-    try { 
+
+    try {
         //Open source file.
         Excel.Workbooks srcBooks = excelApp.Workbooks;
         Excel.Workbook sourceWb = srcBooks.Open(@"C:\Users\kyle.nelson\Downloads\Test_BIM 360 Project List.xlsx");
@@ -56,39 +50,59 @@ static void ExcelProcess()
         Excel.Workbook destWb = excelApp.Workbooks.Open(@"C:\Users\kyle.nelson\Downloads\Dest_BIM 360 Project List.xlsx");
         Excel.Sheets destSheets = destWb.Worksheets;
 
+        //Delete contents from all destination worksheets.
         foreach (Excel.Worksheet dSheet in destSheets) {
             dSheet.UsedRange.Clear();
         }
 
-        for (int i = 1; i <= sourceSheets.Count; i++) {
+        if (sourceSheets.Count > 0) { 
+            for (int i = 1; i <= sourceSheets.Count; i++) {
 
-            //Store current index as Worksheet.
-            Excel.Worksheet sheet = sourceSheets[i];
+                //Store current index as Worksheet.
+                Excel.Worksheet srcSheet = sourceSheets[i];
 
-            //Get Worksheet sheetName.
-            string sheetName = sheet.Name;
+                //Get Worksheet sheetName.
+                string sheetName = srcSheet.Name;
 
-            //Write date from source to destination file.
-            if (sheetName.Contains("Docs")) {
-                int[] activeCols = { 1, 2, 3, 4 };
-                WriteHeader(sheet, destSheets[1], activeCols);
+                //Write data from source to destination file.
+                if (sheetName.Contains("Docs")) {
 
-                int[] archiveCols = { 1, 2, 3, 4, 5, 6, 7, 8 };
-                WriteHeader(sheet, destSheets[2], archiveCols);
+                    //Active projects.
+                    //Only write these column numbers.
+                    int[] activeCols = { 1, 2, 3, 4 };
+
+                    //Destination Worksheet.
+                    Excel.Worksheet destActiveWS = destSheets[1];
+
+                    //Write info from source to destination, only specified columns.
+                    WriteHeader(srcSheet, destActiveWS, activeCols);
+
+                    //Archived projects.
+                    int[] archiveCols = { 1, 2, 3, 4, 5, 6, 7, 8 };
+                    Excel.Worksheet destArchiveWS = destSheets[2];
+                    WriteHeader(srcSheet, destArchiveWS, archiveCols);
+                }
+                //Client Hosted projects.
+                else if (sheetName.Contains("Client")) {
+                    int[] clientCols = { 1, 2, 3, 4, 5 };
+                    Excel.Worksheet destClientWS = destSheets[3];
+                    WriteHeader(srcSheet, destClientWS, clientCols);
+                }
             }
-            else if (sheetName.Contains("Client")) {
-                int[] clientCols = { 1, 2, 3, 4, 5 };
-                WriteHeader(sheet, destSheets[3], clientCols);
-            }
+
+            //Save the workbooks.
+            sourceWb.Save();
+            destWb.Save();
+
+            //Close the workbooks.
+            sourceWb.Close();
+            destWb.Close();
         }
 
-        //Save the workbooks.
-        sourceWb.Save();
-        destWb.Save();
-
-        //Close the workbooks.
-        sourceWb.Close();
-        destWb.Close();
+        //Source Workbook is empty.
+        else {
+            Console.WriteLine("Source Workbook is empty.");
+        }
     }
     catch (Exception ex) {
         Console.WriteLine(ex.Message);
@@ -120,6 +134,7 @@ static void WriteHeader(Excel.Worksheet srcWs, Excel.Worksheet destWs, int[] col
         for (int column = 1; column <= cols.Length; column++) {
 
             //Get cell value by column number (index value on input cols array).
+            //-1 because cols array is 0-based index. Excel is 1-based index.
             Excel.Range srcCell = srcRow[cols[(column - 1)]];
 
             //Write the cell contents to destination cell (starting at column A1).
@@ -129,7 +144,7 @@ static void WriteHeader(Excel.Worksheet srcWs, Excel.Worksheet destWs, int[] col
         //Move to the next row.
         rowCount++;
     }
-    Console.WriteLine("Write Done");
+    Console.WriteLine("Write Complete");
 }
 
 /// If Excel Processes started in this application are still running, stop them.
