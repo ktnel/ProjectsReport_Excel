@@ -112,6 +112,19 @@ static void ExcelProcess()
             Console.WriteLine($"{ex.Message} ({GetStackLine(ex.StackTrace)})");
         }
         else { Console.WriteLine(ex.Message); };
+
+        //Count the Workbooks that are still open.
+        int wbCount = excelApp.Workbooks.Count;
+
+        //If workbooks are still open, close without saving.
+        if (wbCount > 0) {
+            for (int i = 1; i <= wbCount; i++) {
+                //Must be index 1 because Workbooks.Count value changes.
+                //Raises exception if 'i' is greater than Workbooks.Count.
+                excelApp.Workbooks[1].Close(false);
+            }
+            Console.WriteLine("Workbooks were closed without saving.");
+        }
     }
 
     //Quit Excel application.
@@ -135,33 +148,26 @@ static void WriteData(Excel.Application xlApp, Excel.Worksheet srcWs, Excel.Work
         rowFilter = "Archived";
     }
 
-    //Get the last row number.
+    //Get the last row & column numbers that have data.
     int lastRow = srcWs.UsedRange.SpecialCells(Excel.XlCellType.xlCellTypeLastCell, Type.Missing).Row;
+    int lastCol = srcWs.UsedRange.SpecialCells(Excel.XlCellType.xlCellTypeLastCell, Type.Missing).Column;
 
     //Starting row number.
     int srcRowCount = 1;
     int destRowCount = 1;
 
-    //Write date/time stamp to cell B1.
+    //Write date/time stamp to cell B1. Move to the second row.
     destWs.Cells[1, 2] = $"Export Date: {DateTime.Now}";
-    
-    //Move to the second row.
     destRowCount += 1;
 
+    ///Active & Archive write to 400+ rows. Can I adjust this count?
     //Loop until finished with last row.
     while (srcRowCount <= lastRow) {
-        
-        ///Use same method as "lastRow" to get cells with data. This collects 16000+ cells.
-        //Get row from source worksheet.
-        Excel.Range srcRow = srcWs.UsedRange.EntireRow[srcRowCount].Cells;
 
-        //Store desired cells in list.
-        List<string> frstRow = new();
-        for (int i = 0; i <= srcCols.Length-1; i++) {
-
-            //Get cell value by colCount number (index value on input srcCols array).
-            frstRow.Add(srcRow[srcCols[i]].Cells.Text);
-        }
+        //Get row from source worksheet. Using first and last cell in row.
+        Excel.Range firstCell = srcWs.Cells[srcRowCount, 1];
+        Excel.Range lastCell = srcWs.Cells[srcRowCount, lastCol];
+        Excel.Range srcRow = srcWs.Range[firstCell, lastCell];
 
         //Variable used to write a specific row or not.
         bool writeRow = true;
@@ -170,7 +176,6 @@ static void WriteData(Excel.Application xlApp, Excel.Worksheet srcWs, Excel.Work
         if (srcRowCount > 1 & rowFilter != "") {
 
             //If destination Ws Name contains rowFilter but source column 4 doesn't, skip row.
-            //string checkCell = frstRow[3];
             string checkCell = srcRow[4].Cells.Text;
             if (destSheetName.Contains(rowFilter) & checkCell != rowFilter) {
                 writeRow = false;
@@ -187,7 +192,20 @@ static void WriteData(Excel.Application xlApp, Excel.Worksheet srcWs, Excel.Work
                 Excel.Range srcCell = srcRow[srcCols[(colCount - 1)]];
 
                 //Write the cell contents to destination cell (starting at colCount A1).
+                Excel.Range destCell = destWs.Cells[destRowCount, colCount];
+                // Doesn't write cell contents if destCell is a variable.
                 destWs.Cells[destRowCount, colCount] = srcCell;
+
+                //Set Horizontal Alignment.
+                destCell.HorizontalAlignment = srcCell.HorizontalAlignment;
+                destCell.WrapText = srcCell.WrapText;
+                destCell.Font.Bold = srcCell.Font.Bold;
+                destCell.Font.Size = srcCell.Font.Size;
+                destCell.Font.Color = srcCell.Font.Color;
+
+                if (destRowCount == 1) {
+                    destCell.ColumnWidth = srcCell.ColumnWidth;
+                }
             }
             //Move to the next destination row.
             destRowCount++;
