@@ -76,28 +76,28 @@ static void ExcelProcess()
                     Excel.Worksheet destActiveWS = destSheets[1];
 
                     //Write info from source to destination, only specified columns.
-                    WriteData(srcSheet, destActiveWS, activeCols);
+                    WriteData(excelApp, srcSheet, destActiveWS, activeCols);
 
                     //Archived projects.
                     int[] archiveCols = { 1, 2, 3, 4, 5, 6, 7, 8 };
                     Excel.Worksheet destArchiveWS = destSheets[2];
-                    WriteData(srcSheet, destArchiveWS, archiveCols);
+                    WriteData(excelApp, srcSheet, destArchiveWS, archiveCols);
                 }
                 //Client Hosted projects.
                 else if (sheetName.Contains("Client")) {
                     int[] clientCols = { 1, 2, 3, 4, 5 };
                     Excel.Worksheet destClientWS = destSheets[3];
-                    WriteData(srcSheet, destClientWS, clientCols);
+                    WriteData(excelApp, srcSheet, destClientWS, clientCols);
                 }
             }
 
             //Save the workbooks.
-            sourceWb.Save();
-            destWb.Save();
+            //sourceWb.Save(); Don't need to save the source Workbook.
+            //destWb.Save();
 
-            //Close the workbooks.
-            sourceWb.Close();
-            destWb.Close();
+            //Close the workbooks with save action.
+            sourceWb.Close(false);
+            destWb.Close(true);
         }
 
         //Source Workbook is empty.
@@ -119,7 +119,7 @@ static void ExcelProcess()
 }
 
 ///Write Excel data to destination Workbook.
-static void WriteData(Excel.Worksheet srcWs, Excel.Worksheet destWs, int[] srcCols)
+static void WriteData(Excel.Application xlApp, Excel.Worksheet srcWs, Excel.Worksheet destWs, int[] srcCols)
 {
     //Get the destination Worksheet Name.
     string destSheetName = destWs.Name;
@@ -170,7 +170,8 @@ static void WriteData(Excel.Worksheet srcWs, Excel.Worksheet destWs, int[] srcCo
         if (srcRowCount > 1 & rowFilter != "") {
 
             //If destination Ws Name contains rowFilter but source column 4 doesn't, skip row.
-            string checkCell = frstRow[3];
+            //string checkCell = frstRow[3];
+            string checkCell = srcRow[4].Cells.Text;
             if (destSheetName.Contains(rowFilter) & checkCell != rowFilter) {
                 writeRow = false;
             }
@@ -194,18 +195,29 @@ static void WriteData(Excel.Worksheet srcWs, Excel.Worksheet destWs, int[] srcCo
         //Move to the next row.
         srcRowCount++;
     }
+
+    //Set the destination Worksheet as the Active Worksheet.
+    Excel.Worksheet activeWs = xlApp.ActiveSheet;
+
+    //Select cell A1.
+    Excel.Range cellA1 = activeWs.get_Range("A1");
+    cellA1.Select();
+
+    //Write Complete message to Console.
     Console.WriteLine($"{srcWs.Name} Workbook Complete");
 }
 
 static string GetStackLine(string msg)
 {
     //Create a new StringBuilder
-    StringBuilder strLine = new StringBuilder("Line ");
+    StringBuilder strLine = new("Line ");
 
     //Isolate and collect everything after "cs:line ".
     string str = "cs:line";
     int strStart = (msg.IndexOf(str) + str.Length + 1);
-    string cut = msg.Substring(strStart, (msg.Length - strStart));
+    //strStart.. = strStart index to end of string.
+    string cut = msg[strStart..];
+    //Same as: string cut = msg.Substring(strStart, (msg.Length - strStart));
 
     //Convert each char into int and add to StringBuilder.
     //  once a number isn't found, break the foreach loop.
@@ -231,6 +243,13 @@ static void CheckFinalProcess(Process process)
         if (i < counter) {
             //Discard cached info about process.
             process.Refresh();
+
+            //Garbage Collection.
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+
             //Write message to Console.
             Console.WriteLine("Excel Process is still running.");
             Thread.Sleep(1000);
