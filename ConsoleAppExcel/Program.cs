@@ -65,6 +65,7 @@ static void ExcelProcess()
                 //Get Worksheet sheetName.
                 string sheetName = srcSheet.Name;
 
+                ///Windows form to pair srcSheet with destSheet. Include filter settings.
                 //Write data from source to destination file.
                 if (sheetName.Contains("Docs")) {
 
@@ -138,7 +139,7 @@ static void WriteData(Excel.Application xlApp, Excel.Worksheet srcWs, Excel.Work
     string destSheetName = destWs.Name;
 
     //Variable to filter Active and Archived projects (rows). Not set on Client projects.
-    string rowFilter = "";
+    string? rowFilter = null;
 
     //If the destination sheet name contains Active or Archived, set rowFilter.
     if (destSheetName.Contains("Active")) {
@@ -149,9 +150,34 @@ static void WriteData(Excel.Application xlApp, Excel.Worksheet srcWs, Excel.Work
     }
 
     //Get the last row & column numbers that have data.
-    int lastRow = srcWs.UsedRange.SpecialCells(Excel.XlCellType.xlCellTypeLastCell, Type.Missing).Row;
-    int lastCol = srcWs.UsedRange.SpecialCells(Excel.XlCellType.xlCellTypeLastCell, Type.Missing).Column;
+    int lastRowNum = srcWs.UsedRange.SpecialCells(Excel.XlCellType.xlCellTypeLastCell, Type.Missing).Row;
+    int lastColNum = srcWs.UsedRange.SpecialCells(Excel.XlCellType.xlCellTypeLastCell, Type.Missing).Column;
 
+    List<int> iterRows = new();
+
+    //If rowFilter was set.
+    if (rowFilter != null) {
+
+        //Create a list for rows that pass rowFilter.
+        iterRows.Add(1);
+
+        //Column used to look for rowFilter.
+        int refCol = 4;
+
+        //If refCol value matches rowFilter value, add row number to list.
+        for (int i = 2; i <= lastRowNum; i++) {
+            if (srcWs.Cells[i, refCol].Value == rowFilter) {
+                iterRows.Add(i);
+            }
+        }
+        //Change the last row count.
+        lastRowNum = iterRows.Last();
+    }
+
+    else {
+
+    }
+        
     //Starting row number.
     int srcRowCount = 1;
     int destRowCount = 1;
@@ -162,11 +188,11 @@ static void WriteData(Excel.Application xlApp, Excel.Worksheet srcWs, Excel.Work
 
     ///Active & Archive write to 400+ rows. Can I adjust this count?
     //Loop until finished with last row.
-    while (srcRowCount <= lastRow) {
+    while (srcRowCount <= lastRowNum) {
 
         //Get row from source worksheet. Using first and last cell in row.
         Excel.Range firstCell = srcWs.Cells[srcRowCount, 1];
-        Excel.Range lastCell = srcWs.Cells[srcRowCount, lastCol];
+        Excel.Range lastCell = srcWs.Cells[srcRowCount, lastColNum];
         Excel.Range srcRow = srcWs.Range[firstCell, lastCell];
 
         //Variable used to write a specific row or not.
