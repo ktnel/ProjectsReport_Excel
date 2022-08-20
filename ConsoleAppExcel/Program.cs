@@ -175,69 +175,60 @@ static void WriteData(Excel.Application xlApp, Excel.Worksheet srcWs, Excel.Work
     }
 
     else {
-
+        for (int i = 1; i <= lastRowNum; i++) {
+            iterRows.Add(i);
+        }
     }
         
     //Starting row number.
-    int srcRowCount = 1;
+    //First item on iterRows list.
+    int srcRowIndex = 0;
+
+    //First row in destination Worksheet.
     int destRowCount = 1;
 
     //Write date/time stamp to cell B1. Move to the second row.
     destWs.Cells[1, 2] = $"Export Date: {DateTime.Now}";
     destRowCount += 1;
-
-    ///Active & Archive write to 400+ rows. Can I adjust this count?
+    
+   
     //Loop until finished with last row.
-    while (srcRowCount <= lastRowNum) {
+    while (srcRowIndex <= lastRowNum) {
 
+        int srcRowCount = iterRows[srcRowIndex];
         //Get row from source worksheet. Using first and last cell in row.
         Excel.Range firstCell = srcWs.Cells[srcRowCount, 1];
         Excel.Range lastCell = srcWs.Cells[srcRowCount, lastColNum];
         Excel.Range srcRow = srcWs.Range[firstCell, lastCell];
 
-        //Variable used to write a specific row or not.
-        bool writeRow = true;
 
-        //If the row is not the title row. Not used for Client projects.
-        if (srcRowCount > 1 & rowFilter != "") {
+        //Write row (srcRowCount) to destination file.
+        for (int colCount = 1; colCount <= srcCols.Length; colCount++) {
 
-            //If destination Ws Name contains rowFilter but source column 4 doesn't, skip row.
-            string checkCell = srcRow[4].Cells.Text;
-            if (destSheetName.Contains(rowFilter) & checkCell != rowFilter) {
-                writeRow = false;
+            //Get cell value by colCount number (index value on input srcCols array).
+            //-1 because srcCols array is 0-based index. Excel is 1-based index.
+            Excel.Range srcCell = srcRow[srcCols[(colCount - 1)]];
+
+            //Write the cell contents to destination cell (starting at colCount A1).
+            Excel.Range destCell = destWs.Cells[destRowCount, colCount];
+            // Doesn't write cell contents using destCell is a variable.
+            destWs.Cells[destRowCount, colCount] = srcCell;
+
+            //Set Horizontal Alignment.
+            destCell.HorizontalAlignment = srcCell.HorizontalAlignment;
+            destCell.WrapText = srcCell.WrapText;
+            destCell.Font.Bold = srcCell.Font.Bold;
+            destCell.Font.Size = srcCell.Font.Size;
+            destCell.Font.Color = srcCell.Font.Color;
+
+            if (destRowCount == 1) {
+                destCell.ColumnWidth = srcCell.ColumnWidth;
             }
         }
+        //Move to the next destination row.
+        destRowCount++;
+        srcRowIndex++;
 
-        //Write data if writeRow is true.
-        if (writeRow) {
-            //Write row (srcRowCount) to destination file.
-            for (int colCount = 1; colCount <= srcCols.Length; colCount++) {
-
-                //Get cell value by colCount number (index value on input srcCols array).
-                //-1 because srcCols array is 0-based index. Excel is 1-based index.
-                Excel.Range srcCell = srcRow[srcCols[(colCount - 1)]];
-
-                //Write the cell contents to destination cell (starting at colCount A1).
-                Excel.Range destCell = destWs.Cells[destRowCount, colCount];
-                // Doesn't write cell contents if destCell is a variable.
-                destWs.Cells[destRowCount, colCount] = srcCell;
-
-                //Set Horizontal Alignment.
-                destCell.HorizontalAlignment = srcCell.HorizontalAlignment;
-                destCell.WrapText = srcCell.WrapText;
-                destCell.Font.Bold = srcCell.Font.Bold;
-                destCell.Font.Size = srcCell.Font.Size;
-                destCell.Font.Color = srcCell.Font.Color;
-
-                if (destRowCount == 1) {
-                    destCell.ColumnWidth = srcCell.ColumnWidth;
-                }
-            }
-            //Move to the next destination row.
-            destRowCount++;
-        }
-        //Move to the next row.
-        srcRowCount++;
     }
 
     //Set the destination Worksheet as the Active Worksheet.
@@ -249,6 +240,7 @@ static void WriteData(Excel.Application xlApp, Excel.Worksheet srcWs, Excel.Work
 
     //Write Complete message to Console.
     Console.WriteLine($"{srcWs.Name} Workbook Complete");
+
 }
 
 static string GetStackLine(string msg)
