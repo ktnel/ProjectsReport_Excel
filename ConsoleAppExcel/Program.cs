@@ -202,7 +202,7 @@ static void WriteData(Excel.Application xlApp, Excel.Worksheet srcWs, Excel.Work
         Excel.Range srcRow = srcWs.Range[firstCell, lastCell];
 
         //If column 1 or 3 in srcRow != n/a.
-        if (srcRow[1].Text != "n/a" || srcRow[3].Text != "n/a") {
+        if (srcRow[1].Text != "n/a" && srcRow[3].Text != "n/a") {
             //Write row (srcRowNum) to destination file.
             for (int colCount = 1; colCount <= srcCols.Length; colCount++) {
 
