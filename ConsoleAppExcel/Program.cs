@@ -1,7 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Text;
 using Excel = Microsoft.Office.Interop.Excel;
-//using System.Runtime.InteropServices;
 //using System.Globalization;
 
 //Get a list of current Excel processes.
@@ -29,8 +28,9 @@ GC.WaitForPendingFinalizers();
 //Get a new list of Excel processes.
 Process[] finalExcelProc = Process.GetProcessesByName("EXCEL");
 
+//If Excel Process started after original collection and is still running.
 foreach (Process proc in finalExcelProc) {
-    //If Excel process started after original collection and is still running.
+    //If new Process is running, Refresh, GC, and Kill.
     if (!origProcIds.Contains(proc.Id) && !proc.HasExited) {
         CheckFinalProcess(proc);
     }
@@ -56,6 +56,7 @@ static void ExcelProcess()
             dSheet.UsedRange.Clear();
         }
 
+        //If there are Worksheets in the workbook.
         if (sourceSheets.Count > 0) { 
             for (int i = 1; i <= sourceSheets.Count; i++) {
 
@@ -71,7 +72,7 @@ static void ExcelProcess()
 
                     //Active projects.
                     //Only write these colCount numbers.
-                    int[] activeCols = { 1, 2, 3, 4 };
+                    int[] activeCols = { 1, 2, 3, 4, 16 };
 
                     //Destination Worksheet.
                     Excel.Worksheet destActiveWS = destSheets[1];
@@ -80,21 +81,17 @@ static void ExcelProcess()
                     WriteData(excelApp, srcSheet, destActiveWS, activeCols);
 
                     //Archived projects.
-                    int[] archiveCols = { 1, 2, 3, 4, 5, 6, 7, 8 };
+                    int[] archiveCols = { 1, 2, 3, 4, 5, 6, 7, 8, 16 };
                     Excel.Worksheet destArchiveWS = destSheets[2];
                     WriteData(excelApp, srcSheet, destArchiveWS, archiveCols);
                 }
                 //Client Hosted projects.
                 else if (sheetName.Contains("Client")) {
-                    int[] clientCols = { 1, 2, 3, 4, 5 };
+                    int[] clientCols = { 1, 2, 3, 4, 5, 19 };
                     Excel.Worksheet destClientWS = destSheets[3];
                     WriteData(excelApp, srcSheet, destClientWS, clientCols);
                 }
             }
-
-            //Save the workbooks.
-            //sourceWb.Save(); Don't need to save the source Workbook.
-            //destWb.Save();
 
             //Close the workbooks with save action.
             sourceWb.Close(false);
@@ -110,8 +107,10 @@ static void ExcelProcess()
     //Catch all exceptions, write to Console.
     catch (Exception ex) {
         if (ex.StackTrace != null) {
+            //Write Exception message and line that Exception was raised on.
             Console.WriteLine($"{ex.Message} ({GetStackLine(ex.StackTrace)})");
         }
+        //If no line was generated, only write Exception message.
         else { Console.WriteLine(ex.Message); };
 
         //Count the Workbooks that are still open.
@@ -120,6 +119,7 @@ static void ExcelProcess()
         //If workbooks are still open, close without saving.
         if (wbCount > 0) {
             for (int i = 1; i <= wbCount; i++) {
+
                 //Must be index 1 because Workbooks.Count value changes.
                 //Raises exception if 'i' is greater than Workbooks.Count.
                 excelApp.Workbooks[1].Close(false);
@@ -153,6 +153,7 @@ static void WriteData(Excel.Application xlApp, Excel.Worksheet srcWs, Excel.Work
     int lastRowNum = srcWs.UsedRange.SpecialCells(Excel.XlCellType.xlCellTypeLastCell, Type.Missing).Row;
     int lastColNum = srcWs.UsedRange.SpecialCells(Excel.XlCellType.xlCellTypeLastCell, Type.Missing).Column;
 
+    //List to iterate the source Worksheet rows.
     List<int> iterRows = new();
 
     //If rowFilter was set.
@@ -174,64 +175,64 @@ static void WriteData(Excel.Application xlApp, Excel.Worksheet srcWs, Excel.Work
         lastRowNum = iterRows.Last();
     }
 
+    //Source Worksheet is not being filtered.
     else {
+        //List includes 1 thru lastRowNum.
         for (int i = 1; i <= lastRowNum; i++) {
             iterRows.Add(i);
         }
     }
-        
-    //Starting row number.
-    //First item on iterRows list.
-    int srcRowIndex = 0;
 
     //First row in destination Worksheet.
-    int destRowCount = 1;
+    int destRowNum = 1;
 
     //Write date/time stamp to cell B1. Move to the second row.
     destWs.Cells[1, 2] = $"Export Date: {DateTime.Now}";
-    destRowCount += 1;
-    
-   
-    //Loop until finished with last row.
-    while (srcRowIndex <= lastRowNum) {
+    destRowNum += 1;
 
-        int srcRowCount = iterRows[srcRowIndex];
+    //Loop until finished with last row.
+    for (int srcRowIndex = 0; srcRowIndex <= iterRows.Count - 1; srcRowIndex++) {
+
+        //Source row number is index value from iterRows.
+        int srcRowNum = iterRows[srcRowIndex];
+
         //Get row from source worksheet. Using first and last cell in row.
-        Excel.Range firstCell = srcWs.Cells[srcRowCount, 1];
-        Excel.Range lastCell = srcWs.Cells[srcRowCount, lastColNum];
+        Excel.Range firstCell = srcWs.Cells[srcRowNum, 1];
+        Excel.Range lastCell = srcWs.Cells[srcRowNum, lastColNum];
         Excel.Range srcRow = srcWs.Range[firstCell, lastCell];
 
+        //If column 1 or 3 in srcRow != n/a.
+        if (srcRow[1].Text != "n/a" || srcRow[3].Text != "n/a") {
+            //Write row (srcRowNum) to destination file.
+            for (int colCount = 1; colCount <= srcCols.Length; colCount++) {
 
-        //Write row (srcRowCount) to destination file.
-        for (int colCount = 1; colCount <= srcCols.Length; colCount++) {
+                //Get cell value by colCount number (index value on input srcCols array).
+                //-1 because srcCols array is 0-based index. Excel is 1-based index.
+                Excel.Range srcCell = srcRow[srcCols[(colCount - 1)]];
 
-            //Get cell value by colCount number (index value on input srcCols array).
-            //-1 because srcCols array is 0-based index. Excel is 1-based index.
-            Excel.Range srcCell = srcRow[srcCols[(colCount - 1)]];
+                //Write the cell contents to destination cell (starting at colCount A1).
+                Excel.Range destCell = destWs.Cells[destRowNum, colCount];
+                // Doesn't write cell contents using destCell is a variable.
+                destWs.Cells[destRowNum, colCount] = srcCell;
 
-            //Write the cell contents to destination cell (starting at colCount A1).
-            Excel.Range destCell = destWs.Cells[destRowCount, colCount];
-            // Doesn't write cell contents using destCell is a variable.
-            destWs.Cells[destRowCount, colCount] = srcCell;
+                //Format destination cell using source cell format.
+                destCell.HorizontalAlignment = srcCell.HorizontalAlignment;
+                destCell.WrapText = srcCell.WrapText;
+                destCell.Font.Bold = srcCell.Font.Bold;
+                destCell.Font.Size = srcCell.Font.Size;
+                destCell.Font.Color = srcCell.Font.Color;
 
-            //Set Horizontal Alignment.
-            destCell.HorizontalAlignment = srcCell.HorizontalAlignment;
-            destCell.WrapText = srcCell.WrapText;
-            destCell.Font.Bold = srcCell.Font.Bold;
-            destCell.Font.Size = srcCell.Font.Size;
-            destCell.Font.Color = srcCell.Font.Color;
-
-            if (destRowCount == 1) {
-                destCell.ColumnWidth = srcCell.ColumnWidth;
+                //Set column widths on first row after date/time stamp.
+                if (destRowNum == 2) {
+                    destCell.ColumnWidth = srcCell.ColumnWidth;
+                }
             }
+            //Move to the next destination row.
+            destRowNum++;
         }
-        //Move to the next destination row.
-        destRowCount++;
-        srcRowIndex++;
-
     }
 
-    //Set the destination Worksheet as the Active Worksheet.
+    //Set destination Worksheet as the Active Worksheet.
     Excel.Worksheet activeWs = xlApp.ActiveSheet;
 
     //Select cell A1.
@@ -239,10 +240,10 @@ static void WriteData(Excel.Application xlApp, Excel.Worksheet srcWs, Excel.Work
     cellA1.Select();
 
     //Write Complete message to Console.
-    Console.WriteLine($"{srcWs.Name} Workbook Complete");
-
+    Console.WriteLine($"{srcWs.Name} > {destSheetName} Workbook Complete");
 }
 
+/// Extract code line from the Exception StackTrace string.
 static string GetStackLine(string msg)
 {
     //Create a new StringBuilder
