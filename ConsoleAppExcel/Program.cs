@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using Microsoft.Office.Interop.Excel;
+using System.Diagnostics;
 using System.Text;
 using Excel = Microsoft.Office.Interop.Excel;
 //using System.Globalization;
@@ -299,4 +300,13 @@ static void CheckFinalProcess(Process process)
             Console.WriteLine("Excel Process has been terminated.");
         }
     }
+}
+
+///Create a new Worksheet.
+static Worksheet CreateWorksheet(Workbook hostWb, string wbName)
+{
+    Worksheet newWorksheet = hostWb.Sheets.Add();
+    newWorksheet.Name = wbName;
+
+    return newWorksheet;
 }
