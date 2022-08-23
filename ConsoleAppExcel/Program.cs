@@ -189,6 +189,8 @@ static void WriteData(Excel.Application xlApp, Excel.Worksheet srcWs, Excel.Work
 
     //Write date/time stamp to cell B1. Move to the second row.
     destWs.Cells[1, 2] = $"Export Date: {DateTime.Now}";
+    destWs.Cells[1, 2].Font.Bold = true;
+    destWs.Cells[1, 2].Font.Color = System.Drawing.Color.Red;
     destRowNum += 1;
 
     //Loop until finished with last row.
