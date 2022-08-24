@@ -40,20 +40,20 @@ foreach (Process proc in finalExcelProc) {
 ///Perform all the Excel work.
 static void ExcelProcess()
 {
-    Excel.Application excelApp = new();
+    Application excelApp = new();
 
     try {
         //Open source file.
-        Excel.Workbooks srcBooks = excelApp.Workbooks;
-        Excel.Workbook sourceWb = srcBooks.Open(@"C:\Users\kyle.nelson\Downloads\Test_BIM 360 Project List.xlsx");
-        Excel.Sheets sourceSheets = sourceWb.Worksheets;
+        Workbooks srcBooks = excelApp.Workbooks;
+        Workbook sourceWb = srcBooks.Open(@"C:\Users\kyle.nelson\OneDrive - THERMA CORPORATION\Documents\Reports\BI_BIM 360 Project List.xlsx", ReadOnly: true);
+        Sheets sourceSheets = sourceWb.Worksheets;
 
         //Open destination file.
-        Excel.Workbook destWb = excelApp.Workbooks.Open(@"C:\Users\kyle.nelson\Downloads\Dest_BIM 360 Project List.xlsx");
-        Excel.Sheets destSheets = destWb.Worksheets;
+        Workbook destWb = excelApp.Workbooks.Open(@"C:\Users\kyle.nelson\Downloads\Dest_BIM 360 Project List.xlsx", ReadOnly: false);
+        Sheets destSheets = destWb.Worksheets;
 
         //Delete contents from all destination worksheets.
-        foreach (Excel.Worksheet dSheet in destSheets) {
+        foreach (Worksheet dSheet in destSheets) {
             dSheet.UsedRange.Clear();
         }
 
@@ -62,7 +62,7 @@ static void ExcelProcess()
             for (int i = 1; i <= sourceSheets.Count; i++) {
 
                 //Store current index as Worksheet.
-                Excel.Worksheet srcSheet = sourceSheets[i];
+                Worksheet srcSheet = sourceSheets[i];
 
                 //Get Worksheet sheetName.
                 string sheetName = srcSheet.Name;
@@ -73,23 +73,23 @@ static void ExcelProcess()
 
                     //Active projects.
                     //Only write these colCount numbers.
-                    int[] activeCols = { 1, 2, 3, 4, 16 };
+                    int[] activeCols = { 1, 2, 3, 4, 16, 17 };
 
                     //Destination Worksheet.
-                    Excel.Worksheet destActiveWS = destSheets[1];
+                    Worksheet destActiveWS = destSheets[1];
 
                     //Write info from source to destination, only specified columns.
                     WriteData(excelApp, srcSheet, destActiveWS, activeCols);
 
                     //Archived projects.
                     int[] archiveCols = { 1, 2, 3, 4, 5, 6, 7, 8, 16 };
-                    Excel.Worksheet destArchiveWS = destSheets[2];
+                    Worksheet destArchiveWS = destSheets[2];
                     WriteData(excelApp, srcSheet, destArchiveWS, archiveCols);
                 }
                 //Client Hosted projects.
                 else if (sheetName.Contains("Client")) {
-                    int[] clientCols = { 1, 2, 3, 4, 5, 19 };
-                    Excel.Worksheet destClientWS = destSheets[3];
+                    int[] clientCols = { 1, 2, 3, 4, 5, 18, 19 };
+                    Worksheet destClientWS = destSheets[3];
                     WriteData(excelApp, srcSheet, destClientWS, clientCols);
                 }
             }
@@ -134,7 +134,7 @@ static void ExcelProcess()
 }
 
 ///Write Excel data to destination Workbook.
-static void WriteData(Excel.Application xlApp, Excel.Worksheet srcWs, Excel.Worksheet destWs, int[] srcCols)
+static void WriteData(Application xlApp, Worksheet srcWs, Worksheet destWs, int[] srcCols)
 {
     //Get the destination Worksheet Name.
     string destSheetName = destWs.Name;
@@ -151,8 +151,8 @@ static void WriteData(Excel.Application xlApp, Excel.Worksheet srcWs, Excel.Work
     }
 
     //Get the last row & column numbers that have data.
-    int lastRowNum = srcWs.UsedRange.SpecialCells(Excel.XlCellType.xlCellTypeLastCell, Type.Missing).Row;
-    int lastColNum = srcWs.UsedRange.SpecialCells(Excel.XlCellType.xlCellTypeLastCell, Type.Missing).Column;
+    int lastRowNum = srcWs.UsedRange.SpecialCells(XlCellType.xlCellTypeLastCell, Type.Missing).Row;
+    int lastColNum = srcWs.UsedRange.SpecialCells(XlCellType.xlCellTypeLastCell, Type.Missing).Column;
 
     //List to iterate the source Worksheet rows.
     List<int> iterRows = new();
@@ -236,7 +236,7 @@ static void WriteData(Excel.Application xlApp, Excel.Worksheet srcWs, Excel.Work
     }
 
     //Set destination Worksheet as the Active Worksheet.
-    Excel.Worksheet activeWs = xlApp.ActiveSheet;
+    Worksheet activeWs = xlApp.ActiveSheet;
 
     //Select cell A1.
     Excel.Range cellA1 = activeWs.get_Range("A1");
@@ -304,11 +304,11 @@ static void CheckFinalProcess(Process process)
     }
 }
 
-///Create a new Worksheet.
+/*///Create a new Worksheet.
 static Worksheet CreateWorksheet(Workbook hostWb, string wbName)
 {
     Worksheet newWorksheet = hostWb.Sheets.Add();
     newWorksheet.Name = wbName;
 
     return newWorksheet;
-}
+}*/
