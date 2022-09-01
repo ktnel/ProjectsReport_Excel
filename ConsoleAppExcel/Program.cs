@@ -223,7 +223,7 @@ static void WriteData(Application xlApp, Worksheet srcWs, Worksheet destWs, int[
                 destCell.WrapText = srcCell.WrapText;
                 destCell.Font.Bold = srcCell.Font.Bold;
                 destCell.Font.Size = srcCell.Font.Size;
-                destCell.Font.Color = srcCell.Font.Color;
+                //destCell.Font.Color = srcCell.Font.Color;
 
                 //Set column widths on first row after date/time stamp.
                 if (destRowNum == 2) {
