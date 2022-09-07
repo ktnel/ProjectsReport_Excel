@@ -49,7 +49,7 @@ static void ExcelProcess()
         Sheets sourceSheets = sourceWb.Worksheets;
 
         //Open destination file.
-        Workbook destWb = excelApp.Workbooks.Open(@"C:\Users\kyle.nelson\Downloads\Dest_BIM 360 Project List.xlsx", ReadOnly: false);
+        Workbook destWb = excelApp.Workbooks.Open(@"C:\Users\kyle.nelson\THERMA CORPORATION\Obernel BIM - Reports\BIM 360 Project Status Report.xlsx", ReadOnly: false);
         Sheets destSheets = destWb.Worksheets;
 
         //Delete contents from all destination worksheets.
