@@ -88,7 +88,7 @@ static void ExcelProcess()
                 }
                 //Client Hosted projects.
                 else if (sheetName.Contains("Client")) {
-                    int[] clientCols = { 1, 2, 3, 4, 5, 18, 19 };
+                    int[] clientCols = { 1, 2, 3, 4, 5, 6, 19, 20 };
                     Worksheet destClientWS = destSheets[3];
                     WriteData(excelApp, srcSheet, destClientWS, clientCols);
                 }
