@@ -1,7 +1,7 @@
 ﻿using Microsoft.Office.Interop.Excel;
 using System.Diagnostics;
 using System.Text;
-using Excel = Microsoft.Office.Interop.Excel;
+using Xl = Microsoft.Office.Interop.Excel;
 //using System.Globalization;
 
 //Get a list of current Excel processes.
@@ -30,7 +30,8 @@ GC.WaitForPendingFinalizers();
 Process[] finalExcelProc = Process.GetProcessesByName("EXCEL");
 
 //If Excel Process started after original collection and is still running.
-foreach (Process proc in finalExcelProc) {
+foreach (Process proc in finalExcelProc)
+{
     //If new Process is running, Refresh, GC, and Kill.
     if (!origProcIds.Contains(proc.Id) && !proc.HasExited) {
         CheckFinalProcess(proc);
@@ -58,9 +59,10 @@ static void ExcelProcess()
         }
 
         //If there are Worksheets in the workbook.
-        if (sourceSheets.Count > 0) { 
-            for (int i = 1; i <= sourceSheets.Count; i++) {
-
+        if (sourceSheets.Count > 0)
+        { 
+            for (int i = 1; i <= sourceSheets.Count; i++)
+            {
                 //Store current index as Worksheet.
                 Worksheet srcSheet = sourceSheets[i];
 
@@ -69,8 +71,8 @@ static void ExcelProcess()
 
                 ///Windows form to pair srcSheet with destSheet. Include filter settings.
                 //Write data from source to destination file.
-                if (sheetName.Contains("Docs")) {
-
+                if (sheetName.Contains("Docs"))
+                {
                     //Active projects.
                     //Only write these colCount numbers.
                     int[] activeCols = { 1, 2, 3, 4, 16, 17 };
@@ -86,8 +88,10 @@ static void ExcelProcess()
                     Worksheet destArchiveWS = destSheets[2];
                     WriteData(excelApp, srcSheet, destArchiveWS, archiveCols);
                 }
+
                 //Client Hosted projects.
-                else if (sheetName.Contains("Client")) {
+                else if (sheetName.Contains("Client"))
+                {
                     int[] clientCols = { 1, 2, 3, 4, 5, 6, 19, 20 };
                     Worksheet destClientWS = destSheets[3];
                     WriteData(excelApp, srcSheet, destClientWS, clientCols);
@@ -100,14 +104,17 @@ static void ExcelProcess()
         }
 
         //Source Workbook is empty.
-        else {
+        else
+        {
             Console.WriteLine("Source Workbook is empty.");
         }
     }
 
     //Catch all exceptions, write to Console.
-    catch (Exception ex) {
-        if (ex.StackTrace != null) {
+    catch (Exception ex)
+    {
+        if (ex.StackTrace != null)
+        {
             //Write Exception message and line that Exception was raised on.
             Console.WriteLine($"{ex.Message} ({GetStackLine(ex.StackTrace)})");
         }
@@ -118,9 +125,10 @@ static void ExcelProcess()
         int wbCount = excelApp.Workbooks.Count;
 
         //If workbooks are still open, close without saving.
-        if (wbCount > 0) {
-            for (int i = 1; i <= wbCount; i++) {
-
+        if (wbCount > 0)
+        {
+            for (int i = 1; i <= wbCount; i++)
+            {
                 //Must be index 1 because Workbooks.Count value changes.
                 //Raises exception if 'i' is greater than Workbooks.Count.
                 excelApp.Workbooks[1].Close(false);
@@ -158,8 +166,8 @@ static void WriteData(Application xlApp, Worksheet srcWs, Worksheet destWs, int[
     List<int> iterRows = new();
 
     //If rowFilter was set.
-    if (rowFilter != null) {
-
+    if (rowFilter != null)
+    {
         //Create a list for rows that pass rowFilter.
         iterRows.Add(1);
 
@@ -167,8 +175,10 @@ static void WriteData(Application xlApp, Worksheet srcWs, Worksheet destWs, int[
         int refCol = 4;
 
         //If refCol value matches rowFilter value, add row number to list.
-        for (int i = 2; i <= lastRowNum; i++) {
-            if (srcWs.Cells[i, refCol].Value == rowFilter) {
+        for (int i = 2; i <= lastRowNum; i++)
+        {
+            if (srcWs.Cells[i, refCol].Value == rowFilter)
+            {
                 iterRows.Add(i);
             }
         }
@@ -177,9 +187,11 @@ static void WriteData(Application xlApp, Worksheet srcWs, Worksheet destWs, int[
     }
 
     //Source Worksheet is not being filtered.
-    else {
+    else
+    {
         //List includes 1 thru lastRowNum.
-        for (int i = 1; i <= lastRowNum; i++) {
+        for (int i = 1; i <= lastRowNum; i++)
+        {
             iterRows.Add(i);
         }
     }
@@ -187,35 +199,40 @@ static void WriteData(Application xlApp, Worksheet srcWs, Worksheet destWs, int[
     //First row in destination Worksheet.
     int destRowNum = 1;
 
-    //Write date/time stamp to cell B1. Move to the second row.
-    destWs.Cells[1, 2] = $"Export Date: {DateTime.Now}";
-    destWs.Cells[1, 2].Font.Bold = true;
-    destWs.Cells[1, 2].Font.Color = System.Drawing.Color.Red;
+    //Write date/time stamp to cell B1. Make text bold/red.
+    Xl.Range timeStampCell = destWs.Cells[1, 2];
+    timeStampCell.Value = $"Export Date: {DateTime.Now}"; //destWs.Cells[1, 2] = $"Export Date: {DateTime.Now}";
+    timeStampCell.Font.Bold = true;
+    timeStampCell.Font.Color = System.Drawing.Color.Red;
+
+    //Move iterator to the next(2nd) row.
     destRowNum += 1;
 
     //Loop until finished with last row.
-    for (int srcRowIndex = 0; srcRowIndex <= iterRows.Count - 1; srcRowIndex++) {
-
+    for (int srcRowIndex = 0; srcRowIndex <= iterRows.Count - 1; srcRowIndex++)
+    {
         //Source row number is index value from iterRows.
         int srcRowNum = iterRows[srcRowIndex];
 
         //Get row from source worksheet. Using first and last cell in row.
-        Excel.Range firstCell = srcWs.Cells[srcRowNum, 1];
-        Excel.Range lastCell = srcWs.Cells[srcRowNum, lastColNum];
-        Excel.Range srcRow = srcWs.Range[firstCell, lastCell];
+        Xl.Range firstCell = srcWs.Cells[srcRowNum, 1];
+        Xl.Range lastCell = srcWs.Cells[srcRowNum, lastColNum];
+        Xl.Range srcRow = srcWs.Range[firstCell, lastCell];
 
         //If column 1 or 3 in srcRow != n/a.
-        if (srcRow[1].Text != "n/a" && srcRow[3].Text != "n/a") {
+        if (srcRow[1].Text != "n/a" && srcRow[3].Text != "n/a")
+        {
             //Write row (srcRowNum) to destination file.
-            for (int colCount = 1; colCount <= srcCols.Length; colCount++) {
-
+            for (int colCount = 1; colCount <= srcCols.Length; colCount++)
+            {
                 //Get cell value by colCount number (index value on input srcCols array).
                 //-1 because srcCols array is 0-based index. Excel is 1-based index.
-                Excel.Range srcCell = srcRow[srcCols[(colCount - 1)]];
+                Xl.Range srcCell = srcRow[srcCols[(colCount - 1)]];
 
                 //Write the cell contents to destination cell (starting at colCount A1).
-                Excel.Range destCell = destWs.Cells[destRowNum, colCount];
-                // Doesn't write cell contents using destCell is a variable.
+                Xl.Range destCell = destWs.Cells[destRowNum, colCount];
+
+                // Won't write cell contents using destCell as a variable.
                 destWs.Cells[destRowNum, colCount] = srcCell;
 
                 //Format destination cell using source cell format.
@@ -239,7 +256,7 @@ static void WriteData(Application xlApp, Worksheet srcWs, Worksheet destWs, int[
     Worksheet activeWs = xlApp.ActiveSheet;
 
     //Select cell A1.
-    Excel.Range cellA1 = activeWs.get_Range("A1");
+    Xl.Range cellA1 = activeWs.get_Range("A1");
     cellA1.Select();
 
     //Write Complete message to Console.
@@ -255,15 +272,17 @@ static string GetStackLine(string msg)
     //Isolate and collect everything after "cs:line ".
     string str = "cs:line";
     int strStart = (msg.IndexOf(str) + str.Length + 1);
-    //strStart.. = strStart index to end of string.
+    
     string cut = msg[strStart..];
+    //strStart.. = strStart index to end of string.
     //Same as: string cut = msg.Substring(strStart, (msg.Length - strStart));
 
     //Convert each char into int and add to StringBuilder.
     //  once a number isn't found, break the foreach loop.
-    foreach (char c in cut) {
+    foreach (char c in cut)
+    {
         bool success = int.TryParse(c.ToString(), out int number);
-        if (success) {
+        if (success){
             strLine.Append(c);
         }
         else { break; }
@@ -278,9 +297,11 @@ static void CheckFinalProcess(Process process)
     int counter = 2;
 
     //Refresh # times, then kill it.
-    for (int i = 0; i <= counter; i++) {
+    for (int i = 0; i <= counter; i++)
+    {
         //If Process.HasExited is false.
-        if (i < counter) {
+        if (i < counter)
+        {
             //Discard cached info about process.
             process.Refresh();
 
@@ -296,7 +317,8 @@ static void CheckFinalProcess(Process process)
         }
 
         //On the last time, kill the process.
-        else if (i == counter) {
+        else if (i == counter)
+        {
             //Kill the process.
             process.Kill();
             Console.WriteLine("Excel Process has been terminated.");
