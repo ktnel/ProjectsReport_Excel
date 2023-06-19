@@ -59,16 +59,37 @@ static void ExcelProcess()
             Workbook srcWb = srcWbPart.Workbook;
             Sheets sourceSheets = srcWb.Sheets;
 
+            if (sourceSheets.Count() == 0)
+            {
+                throw new ApplicationException("Source Spreadsheet is empty");
+            }
+
             //Destination file
             WorkbookPart destWbPart = destDocument.WorkbookPart;
             Workbook destWb = destWbPart.Workbook;
             Sheets destSheets = destWb.Sheets;
 
+
             //Delete contents from all destination worksheets.
             foreach (Sheet dSheet in destSheets)
             {
                 WorksheetPart destWsPart = (WorksheetPart)destDocument.WorkbookPart.GetPartById(dSheet.Id.Value);
+                SheetData destSheetData = destWsPart.Worksheet.GetFirstChild<SheetData>();
                 IEnumerable<Row> rows = destWsPart.Worksheet.GetFirstChild<SheetData>().Elements<Row>();
+                string dSheetName = dSheet.Name.ToString();
+
+                if (dSheetName.Contains("Active"))
+                {
+                    destActiveSD = destSheetData;
+                }
+                else if (dSheetName.Contains("Archive"))
+                {
+                    destArchiveSD = destSheetData;
+                }
+                else if (dSheetName.Contains("Client"))
+                {
+                    destClientSD = destSheetData;
+                }
 
                 foreach (Row row in rows)
                 {
@@ -82,6 +103,7 @@ static void ExcelProcess()
                 foreach (Sheet srcSheet in sourceSheets)
                 {
                     WorksheetPart srcWsPart = (WorksheetPart)sourceDocument.WorkbookPart.GetPartById(srcSheet.Id.Value);
+                    SheetData srcSheetData = srcWsPart.Worksheet.GetFirstChild<SheetData>();
                     string srcSheetName = srcSheet.Name;
 
                     if (srcSheetName.Contains("Docs"))
@@ -89,12 +111,12 @@ static void ExcelProcess()
                         int[] activCols = { 1, 2, 3, 4, 16, 17 };
 
                         // Destination Worksheet for Active projects.
-                        Sheet destActiveWs = destWbPart.Workbook.Descendants<Sheet>().ElementAt(1);
-                        WriteData(srcSheet, destActiveWs, activCols);
+                        Sheet destActiveWs = destWbPart.Workbook.Descendants<Sheet>().ElementAt(0);
+                        WriteData(srcSheetData, destActiveSD, activCols);
 
                         // Destination Worksheet for Archived projects.
-                        Sheet destArchiveWs = destWbPart.Workbook.Descendants<Sheet>().ElementAt(2);
-                        WriteData(srcSheet, destArchiveWs, activCols);
+                        Sheet destArchiveWs = destWbPart.Workbook.Descendants<Sheet>().ElementAt(1);
+                        WriteData(srcSheetData, destArchiveSD, activCols);
                     }
 
                     else if (srcSheetName.Contains("Client"))
@@ -102,13 +124,13 @@ static void ExcelProcess()
                         int[] clientCols = { 1, 2, 3, 4, 5, 6, 19, 20 };
 
                         // Destination Worksheet for Client Hosted projects.
-                        Sheet destClientWs = destWbPart.Workbook.Descendants<Sheet>().ElementAt(3);
-                        WriteData(srcSheet, destClientWs, clientCols);
+                        Sheet destClientWs = destWbPart.Workbook.Descendants<Sheet>().ElementAt(2);
+                        WriteData(srcSheetData, destClientSD, clientCols);
                     }
                 }
                 //Close the workbooks with save action.
-                sourceWb.Close(false);
-                destWb.Close(true);
+                sourceDocument.Close();
+                destDocument.Close();
 
             }
             //Source Workbook is empty.
@@ -126,136 +148,22 @@ static void ExcelProcess()
                 Console.WriteLine($"{ex.Message} ({GetStackLine(ex.StackTrace)})");
             }
             //If no line was generated, only write Exception message.
-            else { Console.WriteLine(ex.Message); };
-
-            //Count the Workbooks that are still open.
-            int wbCount = excelApp.Workbooks.Count;
-
-            //If workbooks are still open, close without saving.
-            if (wbCount > 0)
+            else
             {
-                for (int i = 1; i <= wbCount; i++)
-                {
-                    //Must be index 1 because Workbooks.Count value changes.
-                    //Raises exception if 'i' is greater than Workbooks.Count.
-                    excelApp.Workbooks[1].Close(false);
-                }
-                Console.WriteLine("Workbooks were closed without saving.");
+                Console.WriteLine(ex.Message);
             }
         }
     }
-
-/*
-    try
-    {
-        //Open source file.
-        //Workbooks srcBooks = excelApp.get_Workbooks();
-        Workbooks srcBooks = excelApp.Workbooks;
-        Workbook sourceWb = srcBooks.Open(@"C:\Users\kyle.nelson\OneDrive - THERMA CORPORATION\Documents\Reports\BI_BIM 360 Project List.xlsx", ReadOnly: true);
-        Sheets sourceSheets = sourceWb.Worksheets;
-
-        //Open destination file.
-
-        Workbook destWb = excelApp.Workbooks.Open(@"C:\Users\kyle.nelson\THERMA CORPORATION\Obernel BIM - Reports\BIM 360 Project Status Report.xlsx", ReadOnly: false);
-        Sheets destSheets = destWb.Worksheets;
-
-        //Delete contents from all destination worksheets.
-        foreach (Worksheet dSheet in destSheets)
-        {
-            dSheet.UsedRange.Clear();
-        }
-
-        //If there are Worksheets in the workbook.
-        if (sourceSheets.Count > 0)
-        {
-            for (int i = 1; i <= sourceSheets.Count; i++)
-            {
-                //Store current index as Worksheet.
-                Worksheet srcSheet = (Worksheet)sourceSheets[i];
-
-                //Get Worksheet sheetName.
-                string sheetName = srcSheet.Name;
-
-                ///Windows form to pair srcSheet with destSheet. Include filter settings.
-                //Write data from source to destination file.
-                if (sheetName.Contains("Docs"))
-                {
-                    //Active projects.
-                    //Only write these colCount numbers.
-                    int[] activeCols = { 1, 2, 3, 4, 16, 17 };
-
-                    //Destination Worksheet.
-                    Worksheet destActiveWS = (Worksheet)destSheets[1];
-
-                    //Write info from source to destination, only specified columns.
-                    WriteData(excelApp, srcSheet, destActiveWS, activeCols);
-
-                    //Archived projects.
-                    int[] archiveCols = { 1, 2, 3, 4, 5, 6, 7, 8, 16 };
-                    Worksheet destArchiveWS = (Worksheet)destSheets[2];
-                    WriteData(excelApp, srcSheet, destArchiveWS, archiveCols);
-                }
-
-                //Client Hosted projects.
-                else if (sheetName.Contains("Client"))
-                {
-                    int[] clientCols = { 1, 2, 3, 4, 5, 6, 19, 20 };
-                    Worksheet destClientWS = (Worksheet)destSheets[3];
-                    WriteData(excelApp, srcSheet, destClientWS, clientCols);
-                }
-            }
-
-            //Close the workbooks with save action.
-            sourceWb.Close(false);
-            destWb.Close(true);
-        }
-
-        //Source Workbook is empty.
-        else
-        {
-            Console.WriteLine("Source Workbook is empty.");
-        }
-    }
-
-    //Catch all exceptions, write to Console.
-    catch (Exception ex)
-    {
-        if (ex.StackTrace != null)
-        {
-            //Write Exception message and line that Exception was raised on.
-            Console.WriteLine($"{ex.Message} ({GetStackLine(ex.StackTrace)})");
-        }
-        //If no line was generated, only write Exception message.
-        else { Console.WriteLine(ex.Message); };
-
-        //Count the Workbooks that are still open.
-        int wbCount = excelApp.Workbooks.Count;
-
-        //If workbooks are still open, close without saving.
-        if (wbCount > 0)
-        {
-            for (int i = 1; i <= wbCount; i++)
-            {
-                //Must be index 1 because Workbooks.Count value changes.
-                //Raises exception if 'i' is greater than Workbooks.Count.
-                excelApp.Workbooks[1].Close(false);
-            }
-            Console.WriteLine("Workbooks were closed without saving.");
-        }
-    }
-
-    //Quit Excel application.
-    excelApp.Quit();
 }
-*/
+
 ///Write Excel data to destination Workbook.
-static void WriteData(Application xlApp, Worksheet srcWs, Worksheet destWs, int[] srcCols)
+static void WriteData(SheetData srcSheetData, Sheet destSheet, int[] srcDataColsNums)
 {
     //Get the destination Worksheet Name.
-    string destSheetName = destWs.Name;
+    string destSheetName = destSheet.Name;
 
     //Variable to filter Active and Archived projects (rows). Not set on Client projects.
-    string? rowFilter = null;
+    string rowFilter = null;
 
     //If the destination sheet name contains Active or Archived, set rowFilter.
     if (destSheetName.Contains("Active")) {
@@ -266,12 +174,16 @@ static void WriteData(Application xlApp, Worksheet srcWs, Worksheet destWs, int[
     }
 
     //Get the last row & column numbers that have data.
-    int lastRowNum = srcWs.UsedRange.SpecialCells(XlCellType.xlCellTypeLastCell, Type.Missing).Row;
-    int lastColNum = srcWs.UsedRange.SpecialCells(XlCellType.xlCellTypeLastCell, Type.Missing).Column;
+    IEnumerable<Row> srcRows = srcSheetData.Elements<Row>();
+    int lastRowNum = srcRows.Count();
 
+    IEnumerable<Column> srcCols = srcSheetData.Elements<Column>();
+    int lastColNum = srcCols.Count();
+
+    /*
     //List to iterate the source Worksheet rows.
     List<int> iterRows = new();
-
+    
     //If rowFilter was set.
     if (rowFilter != null)
     {
@@ -284,7 +196,7 @@ static void WriteData(Application xlApp, Worksheet srcWs, Worksheet destWs, int[
         //If refCol value matches rowFilter value, add row number to list.
         for (int i = 2; i <= lastRowNum; i++)
         {
-            if (srcWs.Cells[i, refCol].ToString() == rowFilter)
+            if (srcSheetData.Cells[i, refCol].ToString() == rowFilter)
             {
                 iterRows.Add(i);
             }
@@ -305,9 +217,9 @@ static void WriteData(Application xlApp, Worksheet srcWs, Worksheet destWs, int[
 
     //First row in destination Worksheet.
     int destRowNum = 1;
-
+    
     //Write date/time stamp to cell B1. Make text bold/red.
-    Range timeStampCell = (Range)destWs.Cells[1, 2];
+    Range timeStampCell = (Range)destSheet.Cells[1, 2];
     timeStampCell.Value = $"Export Date: {DateTime.Now}"; //destWs.Cells[1, 2] = $"Export Date: {DateTime.Now}";
     timeStampCell.Font.Bold = true;
     timeStampCell.Font.Color = System.Drawing.Color.Red;
@@ -322,25 +234,25 @@ static void WriteData(Application xlApp, Worksheet srcWs, Worksheet destWs, int[
         int srcRowNum = iterRows[srcRowIndex];
 
         //Get row from source worksheet. Using first and last cell in row.
-        Range firstCell = (Range)srcWs.Cells[srcRowNum, 1];
-        Range lastCell = (Range)srcWs.Cells[srcRowNum, lastColNum];
+        Range firstCell = (Range)srcSheet.Cells[srcRowNum, 1];
+        Range lastCell = (Range)srcSheet.Cells[srcRowNum, lastColNum];
         Range srcRow = srcWs.Range[firstCell, lastCell];
 
         //If column 1 or 3 in srcRow != n/a.
-        if (srcRow[1].ToString() != "n/a" && srcRow[3].ToString() != "n/a")
+        if (srcSheet[1].ToString() != "n/a" && srcSheet[3].ToString() != "n/a")
         {
             //Write row (srcRowNum) to destination file.
             for (int colCount = 1; colCount <= srcCols.Length; colCount++)
             {
                 //Get cell value by colCount number (index value on input srcCols array).
                 //-1 because srcCols array is 0-based index. Excel is 1-based index.
-                Range srcCell = (Range)srcRow[srcCols[(colCount - 1)]];
+                Range srcCell = (Range)srcSheet[srcCols[(colCount - 1)]];
 
                 //Write the cell contents to destination cell (starting at colCount A1).
-                Range destCell = (Range)destWs.Cells[destRowNum, colCount];
+                Range destCell = (Range)destSheet.Cells[destRowNum, colCount];
 
                 // Won't write cell contents using destCell as a variable.
-                destWs.Cells[destRowNum, colCount] = srcCell;
+                destSheet.Cells[destRowNum, colCount] = srcCell;
 
                 //Format destination cell using source cell format.
                 destCell.HorizontalAlignment = srcCell.HorizontalAlignment;
@@ -366,9 +278,9 @@ static void WriteData(Application xlApp, Worksheet srcWs, Worksheet destWs, int[
     //Select cell A1.
     Range cellA1 = activeWs.get_Range("A1");
     cellA1.Select();
-
+    */
     //Write Complete message to Console.
-    Console.WriteLine($"{srcWs.Name} > {destSheetName} Workbook Complete");
+    Console.WriteLine($"{srcSheetData.Ancestors<Sheet>().FirstOrDefault().Name} > {destSheetName} Workbook Complete");////////////////////////////////////////////////////
 }
 
 /// Extract code line from the Exception StackTrace string.
