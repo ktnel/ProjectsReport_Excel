@@ -1,8 +1,6 @@
-﻿//using Microsoft.Office.Interop.Excel;
-//using Range = Microsoft.Office.Interop.Excel.Range;
-//using Xl = Microsoft.Office.Interop.Excel;
-//using System.Globalization;
+﻿//using System.Globalization;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Text;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Spreadsheet;
@@ -76,20 +74,6 @@ static void ExcelProcess()
                 WorksheetPart destWsPart = (WorksheetPart)destDocument.WorkbookPart.GetPartById(dSheet.Id.Value);
                 SheetData destSheetData = destWsPart.Worksheet.GetFirstChild<SheetData>();
                 IEnumerable<Row> rows = destWsPart.Worksheet.GetFirstChild<SheetData>().Elements<Row>();
-                string dSheetName = dSheet.Name.ToString();
-
-                if (dSheetName.Contains("Active"))
-                {
-                    destActiveSD = destSheetData;
-                }
-                else if (dSheetName.Contains("Archive"))
-                {
-                    destArchiveSD = destSheetData;
-                }
-                else if (dSheetName.Contains("Client"))
-                {
-                    destClientSD = destSheetData;
-                }
 
                 foreach (Row row in rows)
                 {
@@ -97,47 +81,69 @@ static void ExcelProcess()
                 }
             }
 
-            //If there are Worksheets in the workbook.
-            if (sourceSheets.Count() > 0)
+            foreach (Sheet srcSheet in sourceSheets)
             {
-                foreach (Sheet srcSheet in sourceSheets)
+                WorksheetPart srcWsPart = (WorksheetPart)sourceDocument.WorkbookPart.GetPartById(srcSheet.Id.Value);
+                SheetData srcSheetData = srcWsPart.Worksheet.GetFirstChild<SheetData>();
+                string srcSheetName = srcSheet.Name;
+
+                if (srcSheetName.Contains("Docs"))
                 {
-                    WorksheetPart srcWsPart = (WorksheetPart)sourceDocument.WorkbookPart.GetPartById(srcSheet.Id.Value);
-                    SheetData srcSheetData = srcWsPart.Worksheet.GetFirstChild<SheetData>();
-                    string srcSheetName = srcSheet.Name;
-
-                    if (srcSheetName.Contains("Docs"))
+                    int[] activCols = { 1, 2, 3, 4, 16, 17 };
+                    List<int> activeRowIndices = new List<int>();
+                    List<int> archiveRowIndices = new List<int>();
+                    IEnumerable<Row> srcRows = srcSheetData.Elements<Row>();
+                    
+                    foreach (Row row in srcRows)
                     {
-                        int[] activCols = { 1, 2, 3, 4, 16, 17 };
+                        try
+                        {
+                            Cell cell = row.Elements<Cell>().ElementAt(3);
+                            string cellValue = GetCellValue(cell, srcWbPart);
 
-                        // Destination Worksheet for Active projects.
-                        Sheet destActiveWs = destWbPart.Workbook.Descendants<Sheet>().ElementAt(0);
-                        WriteData(srcSheetData, destActiveSD, activCols);
+                            if (cellValue == "Active")
+                            {
+                                activeRowIndices.Add(srcRows.ToList().IndexOf(row));
+                            }
+                            else if (cellValue == "Archived")
+                            {
+                                archiveRowIndices.Add(srcRows.ToList().IndexOf(row));
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            string msg = ex.Message;
+                            int rowNum = srcRows.ToList().IndexOf(row);
 
-                        // Destination Worksheet for Archived projects.
-                        Sheet destArchiveWs = destWbPart.Workbook.Descendants<Sheet>().ElementAt(1);
-                        WriteData(srcSheetData, destArchiveSD, activCols);
+                            if (rowNum > srcRows.Count() +1)
+                            {
+                                throw;
+                            }
+                        }
                     }
 
-                    else if (srcSheetName.Contains("Client"))
-                    {
-                        int[] clientCols = { 1, 2, 3, 4, 5, 6, 19, 20 };
+                    // Destination Worksheet for Active projects.
+                    Sheet destActiveWs = destWbPart.Workbook.Descendants<Sheet>().ElementAt(0);
+                    WriteDocsData(srcWsPart, srcSheetData, destActiveWs, activeRowIndices, activCols);
 
-                        // Destination Worksheet for Client Hosted projects.
-                        Sheet destClientWs = destWbPart.Workbook.Descendants<Sheet>().ElementAt(2);
-                        WriteData(srcSheetData, destClientSD, clientCols);
-                    }
+                    // Destination Worksheet for Archived projects.
+                    Sheet destArchiveWs = destWbPart.Workbook.Descendants<Sheet>().ElementAt(1);
+                    WriteData(srcSheetData, destArchiveWs, activCols);
                 }
-                //Close the workbooks with save action.
-                sourceDocument.Close();
-                destDocument.Close();
 
+                else if (srcSheetName.Contains("Client"))
+                {
+                    int[] clientCols = { 1, 2, 3, 4, 5, 6, 19, 20 };
+
+                    // Destination Worksheet for Client Hosted projects.
+                    Sheet destClientWs = destWbPart.Workbook.Descendants<Sheet>().ElementAt(2);
+                    WriteData(srcSheetData, destClientWs, clientCols);
+                }
             }
-            //Source Workbook is empty.
-            else
-            {
-                Console.WriteLine("Source Workbook is empty.");
-            }
+            //Close the workbooks with save action.
+            sourceDocument.Close();
+            destDocument.Close();
+
         }
         //Catch all exceptions, write to Console.
         catch (Exception ex)
@@ -156,6 +162,12 @@ static void ExcelProcess()
     }
 }
 
+static void WriteDocsData(WorksheetPart wsPart, SheetData sheetData, Sheet destSheet, List<int> rowIndices, int[] colNumbers)
+{
+    SheetData destSheetData = destWsPart.Worksheet.GetFirstChild<SheetData>();
+    IEnumerable<Row> rows = destWsPart.Worksheet.GetFirstChild<SheetData>().Elements<Row>();
+}
+
 ///Write Excel data to destination Workbook.
 static void WriteData(SheetData srcSheetData, Sheet destSheet, int[] srcDataColsNums)
 {
@@ -163,7 +175,7 @@ static void WriteData(SheetData srcSheetData, Sheet destSheet, int[] srcDataCols
     string destSheetName = destSheet.Name;
 
     //Variable to filter Active and Archived projects (rows). Not set on Client projects.
-    string rowFilter = null;
+    string rowFilter;
 
     //If the destination sheet name contains Active or Archived, set rowFilter.
     if (destSheetName.Contains("Active")) {
@@ -282,6 +294,24 @@ static void WriteData(SheetData srcSheetData, Sheet destSheet, int[] srcDataCols
     //Write Complete message to Console.
     Console.WriteLine($"{srcSheetData.Ancestors<Sheet>().FirstOrDefault().Name} > {destSheetName} Workbook Complete");////////////////////////////////////////////////////
 }
+
+static string GetCellValue(Cell cell, WorkbookPart workbookPart)
+{
+    string value = cell.InnerText;
+
+    if (cell.DataType != null && cell.DataType.Value == CellValues.SharedString)
+    {
+        var stringTable = workbookPart.GetPartsOfType<SharedStringTablePart>().FirstOrDefault();
+
+        if (stringTable != null)
+        {
+            value = stringTable.SharedStringTable.ElementAt(int.Parse(value)).InnerText;
+        }
+    }
+
+    return value;
+}
+
 
 /// Extract code line from the Exception StackTrace string.
 static string GetStackLine(string msg)
